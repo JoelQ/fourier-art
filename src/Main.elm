@@ -1,7 +1,9 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (..)
+import Html exposing (Html)
+import Svg exposing (Svg)
+import Svg.Attributes as SvgAttr
 
 
 main : Program Flags Model Msg
@@ -36,6 +38,15 @@ update msg model =
     model
 
 
+
+-- VIEW
+
+
 view : Model -> Html Msg
 view model =
-    text "hello"
+    Svg.svg [] [ vectorCircle model ]
+
+
+vectorCircle : Polar -> Svg a
+vectorCircle point =
+    Svg.circle [ SvgAttr.cx "50", SvgAttr.cy "50", SvgAttr.r "50" ] []
