@@ -27,8 +27,8 @@ type alias Model =
 
 
 type alias Polar =
-    { magnitude : Int
-    , theta : Int
+    { magnitude : Float
+    , theta : Float
     }
 
 
@@ -37,7 +37,7 @@ type alias Polar =
 
 
 type Msg
-    = UserChangedMagnitude Int
+    = UserChangedMagnitude Float
 
 
 update : Msg -> Model -> Model
@@ -54,7 +54,11 @@ update msg model =
 view : Model -> Html Msg
 view model =
     Html.div []
-        [ Svg.svg [] [ vectorCircle model ]
+        [ Svg.svg
+            [ HtmlAttr.width <| pixelToInt <| circleViewport.width
+            , HtmlAttr.height <| pixelToInt <| circleViewport.height
+            ]
+            [ vectorCircle model ]
         , magnitudeRange model
         ]
 
@@ -68,23 +72,23 @@ magnitudeRange point =
             , HtmlAttr.max "10"
             , HtmlAttr.min "1"
             , HtmlAttr.step "1"
-            , HtmlAttr.value <| String.fromInt <| point.magnitude
+            , HtmlAttr.value <| String.fromFloat <| point.magnitude
             , onRangeInput UserChangedMagnitude
             ]
             []
-        , Html.text <| String.fromInt <| point.magnitude
+        , Html.text <| String.fromFloat <| point.magnitude
         ]
 
 
-onRangeInput : (Int -> msg) -> Html.Attribute msg
+onRangeInput : (Float -> msg) -> Html.Attribute msg
 onRangeInput tagger =
     Html.Events.on "input" (Json.Decode.map tagger rangeTarget)
 
 
-rangeTarget : Decoder Int
+rangeTarget : Decoder Float
 rangeTarget =
     Html.Events.targetValue
-        |> Json.Decode.andThen (decoderFromMaybe << String.toInt)
+        |> Json.Decode.andThen (decoderFromMaybe << String.toFloat)
 
 
 decoderFromMaybe : Maybe a -> Decoder a
@@ -98,15 +102,72 @@ decoderFromMaybe maybe =
 
 
 type Pixel
-    = Pixel Int
+    = Pixel Float
 
 
-pixelsPerUnit : Int
+type alias ScreenCoord =
+    { x : Pixel
+    , y : Pixel
+    }
+
+
+type alias Viewport =
+    { width : Pixel
+    , height : Pixel
+    }
+
+
+toScreenCoords : Viewport -> Polar -> ScreenCoord
+toScreenCoords viewport point =
+    let
+        ( x, y ) =
+            fromPolar ( point.magnitude, point.theta )
+
+        (Pixel width) =
+            viewport.width
+
+        viewCenterX =
+            width / 2
+
+        (Pixel height) =
+            viewport.height
+
+        viewCenterY =
+            height / 2
+    in
+    { x = Pixel <| (0 * pixelsPerUnit) + viewCenterX
+    , y = Pixel <| viewCenterY - (0 * pixelsPerUnit)
+    }
+
+
+screenOrigin : ScreenCoord
+screenOrigin =
+    toScreenCoords circleViewport (Polar 0 0)
+
+
+circleViewport : Viewport
+circleViewport =
+    { width = Pixel 100
+    , height = Pixel 100
+    }
+
+
+pixelToInt : Pixel -> Int
+pixelToInt (Pixel px) =
+    round px
+
+
+pixelToString : Pixel -> String
+pixelToString (Pixel px) =
+    String.fromFloat px
+
+
+pixelsPerUnit : Float
 pixelsPerUnit =
     5
 
 
-pixelRadius : Polar -> Int
+pixelRadius : Polar -> Float
 pixelRadius point =
     pixelsPerUnit * point.magnitude
 
@@ -114,9 +175,9 @@ pixelRadius point =
 vectorCircle : Polar -> Svg a
 vectorCircle point =
     Svg.circle
-        [ SvgAttr.cx "50"
-        , SvgAttr.cy "50"
-        , SvgAttr.r <| String.fromInt <| pixelRadius point
+        [ SvgAttr.cx <| pixelToString screenOrigin.x
+        , SvgAttr.cy <| pixelToString screenOrigin.y
+        , SvgAttr.r <| String.fromFloat <| pixelRadius point
         , SvgAttr.fill "white"
         , SvgAttr.stroke "black"
         ]
