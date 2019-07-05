@@ -37,6 +37,55 @@ startingVector =
     Polar 5 0
 
 
+addPolar : Polar -> Polar -> Polar
+addPolar p1 p2 =
+    let
+        ( p1x, p1y ) =
+            fromPolar ( p1.magnitude, degrees p1.theta )
+
+        ( p2x, p2y ) =
+            fromPolar ( p2.magnitude, degrees p2.theta )
+
+        ( sumMag, sumTheta ) =
+            toPolar ( p1x + p2x, p1y + p2y )
+    in
+    { magnitude = sumMag
+    , theta = radToDegrees sumTheta
+    }
+
+
+radToDegrees : Float -> Float
+radToDegrees rad =
+    rad * degreesPerRad
+
+
+degreesPerRad : Float
+degreesPerRad =
+    360 / (2 * pi)
+
+
+partialSums : List Polar -> List Polar
+partialSums points =
+    points
+        |> List.foldl partialSumsStep { sums = [], last = origin }
+        |> accToList
+        |> List.reverse
+
+
+type alias PartialSumsAccumulator =
+    { sums : List Polar, last : Polar }
+
+
+partialSumsStep : Polar -> PartialSumsAccumulator -> PartialSumsAccumulator
+partialSumsStep point ({ sums, last } as acc) =
+    { acc | last = addPolar last point, sums = last :: sums }
+
+
+accToList : PartialSumsAccumulator -> List Polar
+accToList { sums, last } =
+    last :: sums
+
+
 
 -- UPDATE
 
@@ -165,8 +214,20 @@ decoderFromMaybe maybe =
 
 drawingCanvas : List Polar -> Html a
 drawingCanvas points =
-    svgDrawing drawingCanvasViewport <|
-        List.map (vectorLine drawingCanvasViewport origin) points
+    svgDrawing drawingCanvasViewport <| canvasLineSegments points
+
+
+canvasLineSegments : List Polar -> List (Svg a)
+canvasLineSegments points =
+    points
+        |> partialSums
+        |> consecutivePairs
+        |> List.map (\( start, end ) -> vectorLine drawingCanvasViewport start end)
+
+
+consecutivePairs : List a -> List ( a, a )
+consecutivePairs items =
+    List.map2 Tuple.pair items (List.drop 1 items)
 
 
 
