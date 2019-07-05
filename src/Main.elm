@@ -100,7 +100,9 @@ vectorForm : Int -> Polar -> Html Msg
 vectorForm index point =
     Html.div []
         [ svgDrawing circleViewport
-            [ vectorCircle point, vectorLine point ]
+            [ vectorCircle circleViewport point
+            , vectorLine circleViewport origin point
+            ]
         , magnitudeRange (VectorId index) point
         , thetaRange (VectorId index) point
         ]
@@ -163,7 +165,8 @@ decoderFromMaybe maybe =
 
 drawingCanvas : List Polar -> Html a
 drawingCanvas points =
-    svgDrawing drawingCanvasViewport <| List.map vectorLine points
+    svgDrawing drawingCanvasViewport <|
+        List.map (vectorLine drawingCanvasViewport origin) points
 
 
 
@@ -218,9 +221,9 @@ toScreenCoords viewport point =
     }
 
 
-screenOrigin : ScreenCoord
-screenOrigin =
-    toScreenCoords circleViewport (Polar 0 0)
+origin : Polar
+origin =
+    Polar 0 0
 
 
 circleViewport : Viewport
@@ -257,11 +260,11 @@ pixelRadius point =
     pixelsPerUnit * point.magnitude
 
 
-vectorCircle : Polar -> Svg a
-vectorCircle point =
+vectorCircle : Viewport -> Polar -> Svg a
+vectorCircle viewport point =
     Svg.circle
-        [ SvgAttr.cx <| pixelToString screenOrigin.x
-        , SvgAttr.cy <| pixelToString screenOrigin.y
+        [ SvgAttr.cx <| pixelToString <| .x <| toScreenCoords viewport origin
+        , SvgAttr.cy <| pixelToString <| .y <| toScreenCoords viewport origin
         , SvgAttr.r <| String.fromFloat <| pixelRadius point
         , SvgAttr.fill "white"
         , SvgAttr.stroke "black"
@@ -269,13 +272,13 @@ vectorCircle point =
         []
 
 
-vectorLine : Polar -> Svg a
-vectorLine point =
+vectorLine : Viewport -> Polar -> Polar -> Svg a
+vectorLine viewport start end =
     Svg.line
-        [ SvgAttr.x1 <| pixelToString screenOrigin.x
-        , SvgAttr.y1 <| pixelToString screenOrigin.y
-        , SvgAttr.x2 <| pixelToString <| .x <| toScreenCoords circleViewport point
-        , SvgAttr.y2 <| pixelToString <| .y <| toScreenCoords circleViewport point
+        [ SvgAttr.x1 <| pixelToString <| .x <| toScreenCoords viewport start
+        , SvgAttr.y1 <| pixelToString <| .y <| toScreenCoords viewport start
+        , SvgAttr.x2 <| pixelToString <| .x <| toScreenCoords viewport end
+        , SvgAttr.y2 <| pixelToString <| .y <| toScreenCoords viewport end
         , SvgAttr.stroke "black"
         ]
         []
