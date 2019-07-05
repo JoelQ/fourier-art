@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Events
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events
@@ -15,7 +16,7 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
 
 
@@ -33,6 +34,19 @@ init flags =
     , isDrawing = False
     }
         |> withNoCmd
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if model.isDrawing then
+        Browser.Events.onAnimationFrameDelta Tick
+
+    else
+        Sub.none
 
 
 
@@ -85,24 +99,29 @@ degreesPerRad =
 
 partialSums : List Polar -> List Polar
 partialSums points =
-    points
-        |> List.foldl partialSumsStep { sums = [], last = origin }
+    scanl addPolar origin points
+
+
+type alias ScanAcc a =
+    { rest : List a, last : a }
+
+
+scanStep : (a -> b -> b) -> a -> ScanAcc b -> ScanAcc b
+scanStep function point ({ rest, last } as acc) =
+    { acc | last = function point last, rest = last :: rest }
+
+
+accToList : ScanAcc a -> List a
+accToList { rest, last } =
+    last :: rest
+
+
+scanl : (a -> b -> b) -> b -> List a -> List b
+scanl function initial items =
+    items
+        |> List.foldl (scanStep function) { rest = [], last = initial }
         |> accToList
         |> List.reverse
-
-
-type alias PartialSumsAccumulator =
-    { sums : List Polar, last : Polar }
-
-
-partialSumsStep : Polar -> PartialSumsAccumulator -> PartialSumsAccumulator
-partialSumsStep point ({ sums, last } as acc) =
-    { acc | last = addPolar last point, sums = last :: sums }
-
-
-accToList : PartialSumsAccumulator -> List Polar
-accToList { sums, last } =
-    last :: sums
 
 
 
@@ -118,6 +137,7 @@ type Msg
     | UserChangedTheta VectorId Float
     | UserClickedAddNewVector
     | UserToggledDrawing Bool
+    | Tick Float
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -140,6 +160,20 @@ update msg model =
         UserToggledDrawing newDrawingStatus ->
             { model | isDrawing = newDrawingStatus }
                 |> withNoCmd
+
+        Tick delta ->
+            { model | vectors = List.map (rotateForDelta delta) model.vectors }
+                |> withNoCmd
+
+
+degreesPerMillisecond : Float
+degreesPerMillisecond =
+    0.036
+
+
+rotateForDelta : Float -> Polar -> Polar
+rotateForDelta delta point =
+    { point | theta = point.theta + (delta * degreesPerMillisecond) }
 
 
 withNoCmd : a -> ( a, Cmd Msg )
