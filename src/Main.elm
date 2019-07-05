@@ -12,7 +12,7 @@ import Svg.Attributes as SvgAttr
 main : Program Flags Model Msg
 main =
     Browser.sandbox
-        { init = [ Polar 1 45, Polar 5 120 ]
+        { init = [ startingVector ]
         , view = view
         , update = update
         }
@@ -32,6 +32,11 @@ type alias Polar =
     }
 
 
+startingVector : Polar
+startingVector =
+    Polar 5 0
+
+
 
 -- UPDATE
 
@@ -43,6 +48,7 @@ type VectorId
 type Msg
     = UserChangedMagnitude VectorId Float
     | UserChangedTheta VectorId Float
+    | UserClickedAddNewVector
 
 
 update : Msg -> Model -> Model
@@ -53,6 +59,9 @@ update msg model =
 
         UserChangedTheta id newTheta ->
             updatePoint id (\point -> { point | theta = newTheta }) model
+
+        UserClickedAddNewVector ->
+            model ++ [ startingVector ]
 
 
 updatePoint : VectorId -> (Polar -> Polar) -> List Polar -> List Polar
@@ -73,7 +82,15 @@ updatePoint (VectorId id) function =
 
 view : Model -> Html Msg
 view model =
-    Html.section [] <| List.indexedMap vectorForm model
+    Html.section [] <| [ newVectorButton ] ++ List.indexedMap vectorForm model
+
+
+newVectorButton : Html Msg
+newVectorButton =
+    Html.div []
+        [ Html.button [ Html.Events.onClick UserClickedAddNewVector ]
+            [ Html.text "Add new vector" ]
+        ]
 
 
 vectorForm : Int -> Polar -> Html Msg
