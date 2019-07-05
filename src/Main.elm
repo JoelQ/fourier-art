@@ -2,6 +2,9 @@ module Main exposing (main)
 
 import Browser
 import Html exposing (Html)
+import Html.Attributes as HtmlAttr
+import Html.Events
+import Json.Decode exposing (Decoder)
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 
@@ -29,13 +32,19 @@ type alias Polar =
     }
 
 
+
+-- UPDATE
+
+
 type Msg
-    = Noop
+    = UserChangedMagnitude Int
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        UserChangedMagnitude newMagnitude ->
+            { model | magnitude = newMagnitude }
 
 
 
@@ -44,7 +53,40 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    Svg.svg [] [ vectorCircle model ]
+    Html.div []
+        [ Svg.svg [] [ vectorCircle model ]
+        , Html.input
+            [ HtmlAttr.type_ "range"
+            , HtmlAttr.max "10"
+            , HtmlAttr.min "1"
+            , HtmlAttr.step "1"
+            , HtmlAttr.value <| String.fromInt <| model.magnitude
+            , onRangeInput UserChangedMagnitude
+            ]
+            []
+        , Html.text <| String.fromInt <| model.magnitude
+        ]
+
+
+onRangeInput : (Int -> msg) -> Html.Attribute msg
+onRangeInput tagger =
+    Html.Events.on "input" (Json.Decode.map tagger rangeTarget)
+
+
+rangeTarget : Decoder Int
+rangeTarget =
+    Html.Events.targetValue
+        |> Json.Decode.andThen (decoderFromMaybe << String.toInt)
+
+
+decoderFromMaybe : Maybe a -> Decoder a
+decoderFromMaybe maybe =
+    case maybe of
+        Just value ->
+            Json.Decode.succeed value
+
+        Nothing ->
+            Json.Decode.fail "No value"
 
 
 type Pixel
