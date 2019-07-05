@@ -38,6 +38,7 @@ type alias Polar =
 
 type Msg
     = UserChangedMagnitude Float
+    | UserChangedTheta Float
 
 
 update : Msg -> Model -> Model
@@ -45,6 +46,9 @@ update msg model =
     case msg of
         UserChangedMagnitude newMagnitude ->
             { model | magnitude = newMagnitude }
+
+        UserChangedTheta newTheta ->
+            { model | theta = newTheta }
 
 
 
@@ -60,6 +64,7 @@ view model =
             ]
             [ vectorCircle model, vectorLine model ]
         , magnitudeRange model
+        , thetaRange model
         ]
 
 
@@ -77,6 +82,23 @@ magnitudeRange point =
             ]
             []
         , Html.text <| String.fromFloat <| point.magnitude
+        ]
+
+
+thetaRange : Polar -> Html Msg
+thetaRange point =
+    Html.div []
+        [ Html.label [] [ Html.text "Direction" ]
+        , Html.input
+            [ HtmlAttr.type_ "range"
+            , HtmlAttr.max "360"
+            , HtmlAttr.min "0"
+            , HtmlAttr.step "1"
+            , HtmlAttr.value <| String.fromFloat <| point.theta
+            , onRangeInput UserChangedTheta
+            ]
+            []
+        , Html.text <| String.fromFloat <| point.theta
         ]
 
 
@@ -121,7 +143,7 @@ toScreenCoords : Viewport -> Polar -> ScreenCoord
 toScreenCoords viewport point =
     let
         ( x, y ) =
-            fromPolar ( point.magnitude, point.theta )
+            fromPolar ( point.magnitude, degrees point.theta )
 
         (Pixel width) =
             viewport.width
