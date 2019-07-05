@@ -47,6 +47,25 @@ view model =
     Svg.svg [] [ vectorCircle model ]
 
 
+type Pixel
+    = Pixel Int
+
+
+pixelsPerUnit : Int
+pixelsPerUnit =
+    5
+
+
+pixelRadius : Polar -> Int
+pixelRadius point =
+    pixelsPerUnit * point.magnitude
+
+
 vectorCircle : Polar -> Svg a
 vectorCircle point =
-    Svg.circle [ SvgAttr.cx "50", SvgAttr.cy "50", SvgAttr.r "50" ] []
+    Svg.circle
+        [ SvgAttr.cx "50"
+        , SvgAttr.cy "50"
+        , SvgAttr.r <| String.fromInt <| pixelRadius point
+        ]
+        []
