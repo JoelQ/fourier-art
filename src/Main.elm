@@ -12,7 +12,7 @@ import Svg.Attributes as SvgAttr
 main : Program Flags Model Msg
 main =
     Browser.sandbox
-        { init = Polar 1 45
+        { init = [ Polar 1 45, Polar 5 120 ]
         , view = view
         , update = update
         }
@@ -23,7 +23,7 @@ type alias Flags =
 
 
 type alias Model =
-    Polar
+    List Polar
 
 
 type alias Polar =
@@ -36,19 +36,35 @@ type alias Polar =
 -- UPDATE
 
 
+type VectorId
+    = VectorId Int
+
+
 type Msg
-    = UserChangedMagnitude Float
-    | UserChangedTheta Float
+    = UserChangedMagnitude VectorId Float
+    | UserChangedTheta VectorId Float
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        UserChangedMagnitude newMagnitude ->
-            { model | magnitude = newMagnitude }
+        UserChangedMagnitude id newMagnitude ->
+            updatePoint id (\point -> { point | magnitude = newMagnitude }) model
 
-        UserChangedTheta newTheta ->
-            { model | theta = newTheta }
+        UserChangedTheta id newTheta ->
+            updatePoint id (\point -> { point | theta = newTheta }) model
+
+
+updatePoint : VectorId -> (Polar -> Polar) -> List Polar -> List Polar
+updatePoint (VectorId id) function =
+    List.indexedMap
+        (\possibleId point ->
+            if possibleId == id then
+                function point
+
+            else
+                point
+        )
 
 
 
@@ -57,19 +73,24 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    Html.section [] <| List.indexedMap vectorForm model
+
+
+vectorForm : Int -> Polar -> Html Msg
+vectorForm index point =
     Html.div []
         [ Svg.svg
             [ HtmlAttr.width <| pixelToInt <| circleViewport.width
             , HtmlAttr.height <| pixelToInt <| circleViewport.height
             ]
-            [ vectorCircle model, vectorLine model ]
-        , magnitudeRange model
-        , thetaRange model
+            [ vectorCircle point, vectorLine point ]
+        , magnitudeRange (VectorId index) point
+        , thetaRange (VectorId index) point
         ]
 
 
-magnitudeRange : Polar -> Html Msg
-magnitudeRange point =
+magnitudeRange : VectorId -> Polar -> Html Msg
+magnitudeRange id point =
     Html.div []
         [ Html.label [] [ Html.text "Magnitude" ]
         , Html.input
@@ -78,15 +99,15 @@ magnitudeRange point =
             , HtmlAttr.min "1"
             , HtmlAttr.step "1"
             , HtmlAttr.value <| String.fromFloat <| point.magnitude
-            , onRangeInput UserChangedMagnitude
+            , onRangeInput (UserChangedMagnitude id)
             ]
             []
         , Html.text <| String.fromFloat <| point.magnitude
         ]
 
 
-thetaRange : Polar -> Html Msg
-thetaRange point =
+thetaRange : VectorId -> Polar -> Html Msg
+thetaRange id point =
     Html.div []
         [ Html.label [] [ Html.text "Direction" ]
         , Html.input
@@ -95,7 +116,7 @@ thetaRange point =
             , HtmlAttr.min "0"
             , HtmlAttr.step "1"
             , HtmlAttr.value <| String.fromFloat <| point.theta
-            , onRangeInput UserChangedTheta
+            , onRangeInput (UserChangedTheta id)
             ]
             []
         , Html.text <| String.fromFloat <| point.theta
