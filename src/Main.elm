@@ -58,7 +58,7 @@ view model =
             [ HtmlAttr.width <| pixelToInt <| circleViewport.width
             , HtmlAttr.height <| pixelToInt <| circleViewport.height
             ]
-            [ vectorCircle model ]
+            [ vectorCircle model, vectorLine model ]
         , magnitudeRange model
         ]
 
@@ -135,8 +135,8 @@ toScreenCoords viewport point =
         viewCenterY =
             height / 2
     in
-    { x = Pixel <| (0 * pixelsPerUnit) + viewCenterX
-    , y = Pixel <| viewCenterY - (0 * pixelsPerUnit)
+    { x = Pixel <| (x * pixelsPerUnit) + viewCenterX
+    , y = Pixel <| viewCenterY - (y * pixelsPerUnit)
     }
 
 
@@ -179,6 +179,18 @@ vectorCircle point =
         , SvgAttr.cy <| pixelToString screenOrigin.y
         , SvgAttr.r <| String.fromFloat <| pixelRadius point
         , SvgAttr.fill "white"
+        , SvgAttr.stroke "black"
+        ]
+        []
+
+
+vectorLine : Polar -> Svg a
+vectorLine point =
+    Svg.line
+        [ SvgAttr.x1 <| pixelToString screenOrigin.x
+        , SvgAttr.y1 <| pixelToString screenOrigin.y
+        , SvgAttr.x2 <| pixelToString <| .x <| toScreenCoords circleViewport point
+        , SvgAttr.y2 <| pixelToString <| .y <| toScreenCoords circleViewport point
         , SvgAttr.stroke "black"
         ]
         []
