@@ -82,7 +82,10 @@ updatePoint (VectorId id) function =
 
 view : Model -> Html Msg
 view model =
-    Html.section [] <| [ newVectorButton ] ++ List.indexedMap vectorForm model
+    Html.section [] <|
+        [ newVectorButton ]
+            ++ List.indexedMap vectorForm model
+            ++ [ drawingCanvas model ]
 
 
 newVectorButton : Html Msg
@@ -96,10 +99,7 @@ newVectorButton =
 vectorForm : Int -> Polar -> Html Msg
 vectorForm index point =
     Html.div []
-        [ Svg.svg
-            [ HtmlAttr.width <| pixelToInt <| circleViewport.width
-            , HtmlAttr.height <| pixelToInt <| circleViewport.height
-            ]
+        [ svgDrawing circleViewport
             [ vectorCircle point, vectorLine point ]
         , magnitudeRange (VectorId index) point
         , thetaRange (VectorId index) point
@@ -161,6 +161,15 @@ decoderFromMaybe maybe =
             Json.Decode.fail "No value"
 
 
+drawingCanvas : List Polar -> Html a
+drawingCanvas points =
+    svgDrawing drawingCanvasViewport <| List.map vectorLine points
+
+
+
+-- VIEWPORT
+
+
 type Pixel
     = Pixel Float
 
@@ -175,6 +184,15 @@ type alias Viewport =
     { width : Pixel
     , height : Pixel
     }
+
+
+svgDrawing : Viewport -> List (Svg a) -> Html a
+svgDrawing viewport children =
+    Svg.svg
+        [ HtmlAttr.width <| pixelToInt <| viewport.width
+        , HtmlAttr.height <| pixelToInt <| viewport.height
+        ]
+        children
 
 
 toScreenCoords : Viewport -> Polar -> ScreenCoord
@@ -209,6 +227,13 @@ circleViewport : Viewport
 circleViewport =
     { width = Pixel 100
     , height = Pixel 100
+    }
+
+
+drawingCanvasViewport : Viewport
+drawingCanvasViewport =
+    { width = Pixel 500
+    , height = Pixel 500
     }
 
 
