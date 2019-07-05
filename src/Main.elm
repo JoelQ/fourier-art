@@ -11,10 +11,11 @@ import Svg.Attributes as SvgAttr
 
 main : Program Flags Model Msg
 main =
-    Browser.sandbox
-        { init = [ startingVector ]
+    Browser.element
+        { init = always ( [ startingVector ], Cmd.none )
         , view = view
         , update = update
+        , subscriptions = always Sub.none
         }
 
 
@@ -100,17 +101,26 @@ type Msg
     | UserClickedAddNewVector
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UserChangedMagnitude id newMagnitude ->
             updatePoint id (\point -> { point | magnitude = newMagnitude }) model
+                |> withNoCmd
 
         UserChangedTheta id newTheta ->
             updatePoint id (\point -> { point | theta = newTheta }) model
+                |> withNoCmd
 
         UserClickedAddNewVector ->
-            model ++ [ startingVector ]
+            model
+                ++ [ startingVector ]
+                |> withNoCmd
+
+
+withNoCmd : a -> ( a, Cmd Msg )
+withNoCmd val =
+    ( val, Cmd.none )
 
 
 updatePoint : VectorId -> (Polar -> Polar) -> List Polar -> List Polar
