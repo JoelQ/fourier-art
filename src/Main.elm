@@ -12,19 +12,37 @@ import Svg.Attributes as SvgAttr
 main : Program Flags Model Msg
 main =
     Browser.element
-        { init = always ( [ startingVector ], Cmd.none )
+        { init = init
         , view = view
         , update = update
         , subscriptions = always Sub.none
         }
 
 
+
+-- INIT
+
+
 type alias Flags =
     ()
 
 
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    { vectors = [ startingVector ]
+    , isDrawing = False
+    }
+        |> withNoCmd
+
+
+
+-- MODEL
+
+
 type alias Model =
-    List Polar
+    { vectors : List Polar
+    , isDrawing : Bool
+    }
 
 
 type alias Polar =
@@ -99,22 +117,28 @@ type Msg
     = UserChangedMagnitude VectorId Float
     | UserChangedTheta VectorId Float
     | UserClickedAddNewVector
+    | UserToggledDrawing Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UserChangedMagnitude id newMagnitude ->
-            updatePoint id (\point -> { point | magnitude = newMagnitude }) model
+            model
+                |> updatePoint id (\point -> { point | magnitude = newMagnitude })
                 |> withNoCmd
 
         UserChangedTheta id newTheta ->
-            updatePoint id (\point -> { point | theta = newTheta }) model
+            model
+                |> updatePoint id (\point -> { point | theta = newTheta })
                 |> withNoCmd
 
         UserClickedAddNewVector ->
-            model
-                ++ [ startingVector ]
+            { model | vectors = model.vectors ++ [ startingVector ] }
+                |> withNoCmd
+
+        UserToggledDrawing newDrawingStatus ->
+            { model | isDrawing = newDrawingStatus }
                 |> withNoCmd
 
 
@@ -123,16 +147,20 @@ withNoCmd val =
     ( val, Cmd.none )
 
 
-updatePoint : VectorId -> (Polar -> Polar) -> List Polar -> List Polar
-updatePoint (VectorId id) function =
-    List.indexedMap
-        (\possibleId point ->
-            if possibleId == id then
-                function point
+updatePoint : VectorId -> (Polar -> Polar) -> Model -> Model
+updatePoint (VectorId id) function model =
+    { model
+        | vectors =
+            List.indexedMap
+                (\possibleId point ->
+                    if possibleId == id then
+                        function point
 
-            else
-                point
-        )
+                    else
+                        point
+                )
+                model.vectors
+    }
 
 
 
@@ -143,8 +171,24 @@ view : Model -> Html Msg
 view model =
     Html.section [] <|
         [ newVectorButton ]
-            ++ List.indexedMap vectorForm model
-            ++ [ drawingCanvas model ]
+            ++ List.indexedMap vectorForm model.vectors
+            ++ [ toggleDrawingButton model.isDrawing, drawingCanvas model.vectors ]
+
+
+toggleDrawingButton : Bool -> Html Msg
+toggleDrawingButton isDrawing =
+    case isDrawing of
+        True ->
+            Html.div []
+                [ Html.button [ Html.Events.onClick (UserToggledDrawing False) ]
+                    [ Html.text "Stop drawing" ]
+                ]
+
+        False ->
+            Html.div []
+                [ Html.button [ Html.Events.onClick (UserToggledDrawing True) ]
+                    [ Html.text "Start drawing" ]
+                ]
 
 
 newVectorButton : Html Msg
