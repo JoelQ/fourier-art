@@ -243,7 +243,19 @@ rotateForDelta delta vector =
         (Hertz hertz) =
             vector.frequency
     in
-    { vector | theta = vector.theta + (delta * degreesPerMillisecond * hertz) }
+    { vector | theta = clampDegrees <| vector.theta + (delta * degreesPerMillisecond * hertz) }
+
+
+clampDegrees : Float -> Float
+clampDegrees n =
+    if n > 360 then
+        n - 360
+
+    else if n < 0 then
+        n + 360
+
+    else
+        n
 
 
 withNoCmd : a -> ( a, Cmd Msg )
@@ -357,7 +369,7 @@ thetaRange id vector =
             , onRangeInput (UserChangedTheta id)
             ]
             []
-        , Html.text <| String.fromFloat <| vector.theta
+        , Html.text <| String.fromInt <| round vector.theta
         ]
 
 
