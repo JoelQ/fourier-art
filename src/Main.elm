@@ -31,12 +31,17 @@ type alias Flags =
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
+    initialModel
+        |> withNoCmd
+
+
+initialModel : Model
+initialModel =
     { vectors = [ baseVector ]
     , isDrawing = False
     , drawPath = []
     , timeElapsed = 0
     }
-        |> withNoCmd
 
 
 
@@ -203,6 +208,7 @@ type Msg
     | UserClickedAddNewVector
     | UserClickedRandomVectors
     | UserToggledDrawing Bool
+    | UserClickedReset
     | NewVectorsGenerated (List Vector)
     | Tick Float
 
@@ -230,6 +236,10 @@ update msg model =
 
         NewVectorsGenerated newVectors ->
             { model | vectors = newVectors }
+                |> withNoCmd
+
+        UserClickedReset ->
+            initialModel
                 |> withNoCmd
 
         UserToggledDrawing newDrawingStatus ->
@@ -328,7 +338,7 @@ updatePoint (VectorId id) function model =
 view : Model -> Html Msg
 view model =
     Html.section [] <|
-        [ newVectorButton, randomVectorsButton ]
+        [ newVectorButton, randomVectorsButton, resetButton ]
             ++ List.indexedMap vectorForm model.vectors
             ++ [ toggleDrawingButton model.isDrawing
                , drawingCanvas model
@@ -364,6 +374,14 @@ randomVectorsButton =
     Html.div []
         [ Html.button [ Html.Events.onClick UserClickedRandomVectors ]
             [ Html.text "Generate random vectors" ]
+        ]
+
+
+resetButton : Html Msg
+resetButton =
+    Html.div []
+        [ Html.button [ Html.Events.onClick UserClickedReset ]
+            [ Html.text "Reset" ]
         ]
 
 
