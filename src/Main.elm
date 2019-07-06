@@ -6,6 +6,7 @@ import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events
 import Json.Decode exposing (Decoder)
+import Random exposing (Generator)
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 
@@ -200,7 +201,9 @@ type Msg
     = UserChangedMagnitude VectorId Float
     | UserChangedTheta VectorId Float
     | UserClickedAddNewVector
+    | UserClickedRandomVectors
     | UserToggledDrawing Bool
+    | NewVectorsGenerated (List Vector)
     | Tick Float
 
 
@@ -220,6 +223,13 @@ update msg model =
         UserClickedAddNewVector ->
             model
                 |> addNextVectorPair
+                |> withNoCmd
+
+        UserClickedRandomVectors ->
+            ( model, Random.generate NewVectorsGenerated vectorListGenerator )
+
+        NewVectorsGenerated newVectors ->
+            { model | vectors = newVectors }
                 |> withNoCmd
 
         UserToggledDrawing newDrawingStatus ->
@@ -318,7 +328,7 @@ updatePoint (VectorId id) function model =
 view : Model -> Html Msg
 view model =
     Html.section [] <|
-        [ newVectorButton ]
+        [ newVectorButton, randomVectorsButton ]
             ++ List.indexedMap vectorForm model.vectors
             ++ [ toggleDrawingButton model.isDrawing
                , drawingCanvas model
@@ -346,6 +356,14 @@ newVectorButton =
     Html.div []
         [ Html.button [ Html.Events.onClick UserClickedAddNewVector ]
             [ Html.text "Add new vector pair" ]
+        ]
+
+
+randomVectorsButton : Html Msg
+randomVectorsButton =
+    Html.div []
+        [ Html.button [ Html.Events.onClick UserClickedRandomVectors ]
+            [ Html.text "Generate random vectors" ]
         ]
 
 
@@ -580,3 +598,51 @@ vectorLine viewport start end =
         , SvgAttr.stroke "black"
         ]
         []
+
+
+
+-- RANDOM
+
+
+vectorListGenerator : Generator (List Vector)
+vectorListGenerator =
+    Random.int 1 20
+        |> Random.andThen
+            (\n ->
+                List.range 1 n
+                    |> List.map vectorPairGenerator
+                    |> List.foldl (Random.map2 (::)) (Random.constant [])
+                    |> Random.map (List.foldl (\( pos, neg ) list -> pos :: neg :: list) [])
+            )
+
+
+vectorPairGenerator : Int -> Generator ( Vector, Vector )
+vectorPairGenerator frequency =
+    Random.map2 Tuple.pair
+        (vectorGenerator frequency)
+        (vectorGenerator <| negate frequency)
+
+
+vectorGenerator : Int -> Generator Vector
+vectorGenerator frequency =
+    Random.map2
+        (\magnitude theta ->
+            { magnitude = magnitude
+            , theta = theta
+            , frequency = Hertz (toFloat frequency)
+            }
+        )
+        magnitudeGenerator
+        thetaGenerator
+
+
+magnitudeGenerator : Generator Float
+magnitudeGenerator =
+    Random.int 1 10
+        |> Random.map toFloat
+
+
+thetaGenerator : Generator Float
+thetaGenerator =
+    Random.int 0 360
+        |> Random.map toFloat
