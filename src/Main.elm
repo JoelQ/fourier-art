@@ -272,7 +272,7 @@ newDrawPath delta model =
 
 newTimeElapsed : Float -> Float -> Float
 newTimeElapsed delta timeElapsed =
-    if timeElapsed + delta > 1000 then
+    if timeElapsed + delta > (1000 * speedMultiplier) then
         0
 
     else
@@ -284,9 +284,14 @@ addNextVectorPair model =
     { model | vectors = model.vectors ++ nextVectors model.vectors }
 
 
+speedMultiplier : Float
+speedMultiplier =
+    10
+
+
 degreesPerMillisecond : Float
 degreesPerMillisecond =
-    0.36
+    0.36 / speedMultiplier
 
 
 rotateForDelta : Float -> Vector -> Vector
