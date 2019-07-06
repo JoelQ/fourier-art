@@ -54,7 +54,7 @@ subscriptions model =
 
 
 type alias Model =
-    { vectors : List Polar
+    { vectors : List Vector
     , isDrawing : Bool
     }
 
@@ -65,9 +65,30 @@ type alias Polar =
     }
 
 
-startingVector : Polar
+type alias Vector =
+    { magnitude : Float
+    , theta : Float
+    , frequency : Hertz
+    }
+
+
+type Hertz
+    = Hertz Float
+
+
+vectorToPolar : Vector -> Polar
+vectorToPolar vector =
+    { magnitude = vector.magnitude
+    , theta = vector.theta
+    }
+
+
+startingVector : Vector
 startingVector =
-    Polar 5 0
+    { magnitude = 1
+    , theta = 0
+    , frequency = Hertz 1
+    }
 
 
 addPolar : Polar -> Polar -> Polar
@@ -168,12 +189,16 @@ update msg model =
 
 degreesPerMillisecond : Float
 degreesPerMillisecond =
-    0.036
+    0.36
 
 
-rotateForDelta : Float -> Polar -> Polar
-rotateForDelta delta point =
-    { point | theta = point.theta + (delta * degreesPerMillisecond) }
+rotateForDelta : Float -> Vector -> Vector
+rotateForDelta delta vector =
+    let
+        (Hertz hertz) =
+            vector.frequency
+    in
+    { vector | theta = vector.theta + (delta * degreesPerMillisecond * hertz) }
 
 
 withNoCmd : a -> ( a, Cmd Msg )
@@ -181,17 +206,17 @@ withNoCmd val =
     ( val, Cmd.none )
 
 
-updatePoint : VectorId -> (Polar -> Polar) -> Model -> Model
+updatePoint : VectorId -> (Vector -> Vector) -> Model -> Model
 updatePoint (VectorId id) function model =
     { model
         | vectors =
             List.indexedMap
-                (\possibleId point ->
+                (\possibleId vector ->
                     if possibleId == id then
-                        function point
+                        function vector
 
                     else
-                        point
+                        vector
                 )
                 model.vectors
     }
@@ -206,7 +231,9 @@ view model =
     Html.section [] <|
         [ newVectorButton ]
             ++ List.indexedMap vectorForm model.vectors
-            ++ [ toggleDrawingButton model.isDrawing, drawingCanvas model.vectors ]
+            ++ [ toggleDrawingButton model.isDrawing
+               , drawingCanvas <| List.map vectorToPolar model.vectors
+               ]
 
 
 toggleDrawingButton : Bool -> Html Msg
@@ -233,20 +260,20 @@ newVectorButton =
         ]
 
 
-vectorForm : Int -> Polar -> Html Msg
-vectorForm index point =
+vectorForm : Int -> Vector -> Html Msg
+vectorForm index vector =
     Html.div []
         [ svgDrawing circleViewport
-            [ vectorCircle circleViewport point
-            , vectorLine circleViewport origin point
+            [ vectorCircle circleViewport <| vectorToPolar vector
+            , vectorLine circleViewport origin <| vectorToPolar vector
             ]
-        , magnitudeRange (VectorId index) point
-        , thetaRange (VectorId index) point
+        , magnitudeRange (VectorId index) vector
+        , thetaRange (VectorId index) vector
         ]
 
 
-magnitudeRange : VectorId -> Polar -> Html Msg
-magnitudeRange id point =
+magnitudeRange : VectorId -> Vector -> Html Msg
+magnitudeRange id vector =
     Html.div []
         [ Html.label [] [ Html.text "Magnitude" ]
         , Html.input
@@ -254,16 +281,16 @@ magnitudeRange id point =
             , HtmlAttr.max "10"
             , HtmlAttr.min "1"
             , HtmlAttr.step "1"
-            , HtmlAttr.value <| String.fromFloat <| point.magnitude
+            , HtmlAttr.value <| String.fromFloat <| vector.magnitude
             , onRangeInput (UserChangedMagnitude id)
             ]
             []
-        , Html.text <| String.fromFloat <| point.magnitude
+        , Html.text <| String.fromFloat <| vector.magnitude
         ]
 
 
-thetaRange : VectorId -> Polar -> Html Msg
-thetaRange id point =
+thetaRange : VectorId -> Vector -> Html Msg
+thetaRange id vector =
     Html.div []
         [ Html.label [] [ Html.text "Direction" ]
         , Html.input
@@ -271,11 +298,11 @@ thetaRange id point =
             , HtmlAttr.max "360"
             , HtmlAttr.min "0"
             , HtmlAttr.step "1"
-            , HtmlAttr.value <| String.fromFloat <| point.theta
+            , HtmlAttr.value <| String.fromFloat <| vector.theta
             , onRangeInput (UserChangedTheta id)
             ]
             []
-        , Html.text <| String.fromFloat <| point.theta
+        , Html.text <| String.fromFloat <| vector.theta
         ]
 
 
