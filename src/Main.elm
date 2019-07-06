@@ -32,6 +32,7 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     { vectors = [ baseVector ]
     , isDrawing = False
+    , drawPath = []
     }
         |> withNoCmd
 
@@ -56,6 +57,7 @@ subscriptions model =
 type alias Model =
     { vectors : List Vector
     , isDrawing : Bool
+    , drawPath : List Polar
     }
 
 
@@ -223,8 +225,17 @@ update msg model =
                 |> withNoCmd
 
         Tick delta ->
-            { model | vectors = List.map (rotateForDelta delta) model.vectors }
+            model
+                |> stepModel delta
                 |> withNoCmd
+
+
+stepModel : Float -> Model -> Model
+stepModel delta model =
+    { model
+        | vectors = List.map (rotateForDelta delta) model.vectors
+        , drawPath = (List.foldl addPolar origin <| List.map vectorToPolar model.vectors) :: model.drawPath
+    }
 
 
 addNextVectorPair : Model -> Model
@@ -289,7 +300,7 @@ view model =
         [ newVectorButton ]
             ++ List.indexedMap vectorForm model.vectors
             ++ [ toggleDrawingButton model.isDrawing
-               , drawingCanvas <| List.map vectorToPolar model.vectors
+               , drawingCanvas model
                ]
 
 
@@ -394,9 +405,11 @@ decoderFromMaybe maybe =
             Json.Decode.fail "No value"
 
 
-drawingCanvas : List Polar -> Html a
-drawingCanvas points =
-    svgDrawing drawingCanvasViewport <| canvasLineSegments points
+drawingCanvas : Model -> Html a
+drawingCanvas model =
+    svgDrawing drawingCanvasViewport <|
+        (canvasLineSegments <| List.map vectorToPolar model.vectors)
+            ++ [ renderDrawPath drawingCanvasViewport model.drawPath ]
 
 
 canvasLineSegments : List Polar -> List (Svg a)
@@ -410,6 +423,27 @@ canvasLineSegments points =
 consecutivePairs : List a -> List ( a, a )
 consecutivePairs items =
     List.map2 Tuple.pair items (List.drop 1 items)
+
+
+svgPoint : ScreenCoord -> String
+svgPoint { x, y } =
+    pixelToString x ++ "," ++ pixelToString y
+
+
+svgPathString : List ScreenCoord -> String
+svgPathString points =
+    String.join " " (List.map svgPoint points)
+
+
+renderDrawPath : Viewport -> List Polar -> Svg a
+renderDrawPath viewport points =
+    Svg.polyline
+        [ SvgAttr.points (svgPathString <| List.map (toScreenCoords viewport) points)
+        , SvgAttr.stroke "red"
+        , SvgAttr.fill "none"
+        , SvgAttr.strokeWidth "2px"
+        ]
+        []
 
 
 
