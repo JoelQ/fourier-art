@@ -30,7 +30,7 @@ type alias Flags =
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    { vectors = [ startingVector ]
+    { vectors = [ baseVector ]
     , isDrawing = False
     }
         |> withNoCmd
@@ -72,6 +72,21 @@ type alias Vector =
     }
 
 
+nextVectors : List Vector -> List Vector
+nextVectors vectors =
+    let
+        max =
+            vectorMaxFrequency vectors
+
+        positive =
+            { baseVector | frequency = incrementFrequency max }
+
+        negative =
+            { baseVector | frequency = negateFrequency <| incrementFrequency max }
+    in
+    [ positive, negative ]
+
+
 type Hertz
     = Hertz Float
 
@@ -83,12 +98,36 @@ vectorToPolar vector =
     }
 
 
-startingVector : Vector
-startingVector =
-    { magnitude = 1
+baseVector : Vector
+baseVector =
+    { magnitude = 5
     , theta = 0
-    , frequency = Hertz 1
+    , frequency = Hertz 0
     }
+
+
+maxFrequency : Hertz -> Hertz -> Hertz
+maxFrequency (Hertz h1) (Hertz h2) =
+    if h1 > h2 then
+        Hertz h1
+
+    else
+        Hertz h2
+
+
+vectorMaxFrequency : List Vector -> Hertz
+vectorMaxFrequency vectors =
+    List.foldl (\vector max -> maxFrequency max vector.frequency) (Hertz 0) vectors
+
+
+incrementFrequency : Hertz -> Hertz
+incrementFrequency (Hertz h) =
+    Hertz (h + 1)
+
+
+negateFrequency : Hertz -> Hertz
+negateFrequency (Hertz h) =
+    Hertz (negate h)
 
 
 addPolar : Polar -> Polar -> Polar
@@ -175,7 +214,8 @@ update msg model =
                 |> withNoCmd
 
         UserClickedAddNewVector ->
-            { model | vectors = model.vectors ++ [ startingVector ] }
+            model
+                |> addNextVectorPair
                 |> withNoCmd
 
         UserToggledDrawing newDrawingStatus ->
@@ -185,6 +225,11 @@ update msg model =
         Tick delta ->
             { model | vectors = List.map (rotateForDelta delta) model.vectors }
                 |> withNoCmd
+
+
+addNextVectorPair : Model -> Model
+addNextVectorPair model =
+    { model | vectors = model.vectors ++ nextVectors model.vectors }
 
 
 degreesPerMillisecond : Float
@@ -256,7 +301,7 @@ newVectorButton : Html Msg
 newVectorButton =
     Html.div []
         [ Html.button [ Html.Events.onClick UserClickedAddNewVector ]
-            [ Html.text "Add new vector" ]
+            [ Html.text "Add new vector pair" ]
         ]
 
 
@@ -269,6 +314,16 @@ vectorForm index vector =
             ]
         , magnitudeRange (VectorId index) vector
         , thetaRange (VectorId index) vector
+        , frequencyDisplay vector.frequency
+        ]
+
+
+frequencyDisplay : Hertz -> Html a
+frequencyDisplay (Hertz h) =
+    Html.dl
+        []
+        [ Html.dt [] [ Html.text "Frequency" ]
+        , Html.dd [] [ Html.text <| String.fromFloat h ++ " Hz" ]
         ]
 
 
