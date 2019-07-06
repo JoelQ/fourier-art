@@ -33,6 +33,7 @@ init flags =
     { vectors = [ baseVector ]
     , isDrawing = False
     , drawPath = []
+    , timeElapsed = 0
     }
         |> withNoCmd
 
@@ -58,6 +59,7 @@ type alias Model =
     { vectors : List Vector
     , isDrawing : Bool
     , drawPath : List Polar
+    , timeElapsed : Float
     }
 
 
@@ -234,8 +236,27 @@ stepModel : Float -> Model -> Model
 stepModel delta model =
     { model
         | vectors = List.map (rotateForDelta delta) model.vectors
-        , drawPath = (List.foldl addPolar origin <| List.map vectorToPolar model.vectors) :: model.drawPath
+        , drawPath = newDrawPath delta model
+        , timeElapsed = newTimeElapsed delta model.timeElapsed
     }
+
+
+newDrawPath : Float -> Model -> List Polar
+newDrawPath delta model =
+    if newTimeElapsed delta model.timeElapsed == 0 then
+        []
+
+    else
+        (List.foldl addPolar origin <| List.map vectorToPolar model.vectors) :: model.drawPath
+
+
+newTimeElapsed : Float -> Float -> Float
+newTimeElapsed delta timeElapsed =
+    if timeElapsed + delta > 1000 then
+        0
+
+    else
+        timeElapsed + delta
 
 
 addNextVectorPair : Model -> Model
