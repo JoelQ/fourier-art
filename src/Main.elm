@@ -2,6 +2,11 @@ module Main exposing (main)
 
 import Browser
 import Browser.Events
+import Element exposing (Element)
+import Element.Background
+import Element.Border
+import Element.Font
+import Element.Input
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events
@@ -342,57 +347,81 @@ updatePoint (VectorId id) function model =
 
 view : Model -> Html Msg
 view model =
-    Html.section [] <|
-        [ newVectorButton, randomVectorsButton, resetButton ]
-            ++ List.indexedMap vectorForm model.vectors
-            ++ [ toggleDrawingButton model.isDrawing
-               , drawingCanvas model
-               ]
+    Element.layout [] <|
+        Element.column
+            [ Element.width Element.fill
+            , Element.height Element.fill
+            , Element.paddingXY 15 0
+            ]
+            [ navBar model
+            , content model
+            ]
 
 
-toggleDrawingButton : Bool -> Html Msg
+navBar : Model -> Element Msg
+navBar model =
+    Element.row
+        [ Element.spacing 5
+        , Element.height (Element.px 75)
+        , Element.width Element.fill
+        ]
+        [ newVectorButton
+        , randomVectorsButton
+        , resetButton
+        , toggleDrawingButton model.isDrawing
+        ]
+
+
+content : Model -> Element Msg
+content model =
+    Element.row
+        [ Element.height Element.fill
+        , Element.width Element.fill
+        ]
+        [ vectorDials model.vectors
+        , drawingCanvas model
+        ]
+
+
+vectorDials : List Vector -> Element Msg
+vectorDials vectors =
+    Element.column
+        [ Element.width (Element.px 200)
+        , Element.height (Element.px 700)
+        , Element.scrollbarY
+        ]
+    <|
+        List.indexedMap vectorForm vectors
+
+
+toggleDrawingButton : Bool -> Element Msg
 toggleDrawingButton isDrawing =
     case isDrawing of
         True ->
-            Html.div []
-                [ Html.button [ Html.Events.onClick (UserToggledDrawing False) ]
-                    [ Html.text "Stop drawing" ]
-                ]
+            actionButton "Stop drawing" (UserToggledDrawing False)
 
         False ->
-            Html.div []
-                [ Html.button [ Html.Events.onClick (UserToggledDrawing True) ]
-                    [ Html.text "Start drawing" ]
-                ]
+            actionButton "Start drawing" (UserToggledDrawing True)
 
 
-newVectorButton : Html Msg
+newVectorButton : Element Msg
 newVectorButton =
-    Html.div []
-        [ Html.button [ Html.Events.onClick UserClickedAddNewVector ]
-            [ Html.text "Add new vector pair" ]
-        ]
+    actionButton "Add new vector pair" UserClickedAddNewVector
 
 
-randomVectorsButton : Html Msg
+randomVectorsButton : Element Msg
 randomVectorsButton =
-    Html.div []
-        [ Html.button [ Html.Events.onClick UserClickedRandomVectors ]
-            [ Html.text "Generate random vectors" ]
-        ]
+    actionButton "Generate random vectors" UserClickedRandomVectors
 
 
-resetButton : Html Msg
+resetButton : Element Msg
 resetButton =
-    Html.div []
-        [ Html.button [ Html.Events.onClick UserClickedReset ]
-            [ Html.text "Reset" ]
-        ]
+    actionButton "Reset" UserClickedReset
 
 
-vectorForm : Int -> Vector -> Html Msg
+vectorForm : Int -> Vector -> Element Msg
 vectorForm index vector =
-    Html.div []
+    Element.column [ Element.spacing 10 ]
         [ svgDrawing circleViewport
             [ vectorCircle circleViewport <| vectorToPolar vector
             , vectorLine circleViewport origin <| vectorToPolar vector
@@ -403,71 +432,45 @@ vectorForm index vector =
         ]
 
 
-frequencyDisplay : Hertz -> Html a
+frequencyDisplay : Hertz -> Element a
 frequencyDisplay (Hertz h) =
-    Html.dl
-        []
-        [ Html.dt [] [ Html.text "Frequency" ]
-        , Html.dd [] [ Html.text <| String.fromFloat h ++ " Hz" ]
+    Element.row [ Element.spacing 10 ]
+        [ label "Frequency"
+        , Element.text <| String.fromFloat h ++ " Hz"
         ]
 
 
-magnitudeRange : VectorId -> Vector -> Html Msg
+magnitudeRange : VectorId -> Vector -> Element Msg
 magnitudeRange id vector =
-    Html.div []
-        [ Html.label [] [ Html.text "Magnitude" ]
-        , Html.input
-            [ HtmlAttr.type_ "range"
-            , HtmlAttr.max "10"
-            , HtmlAttr.min "1"
-            , HtmlAttr.step "1"
-            , HtmlAttr.value <| String.fromFloat <| vector.magnitude
-            , onRangeInput (UserChangedMagnitude id)
-            ]
-            []
-        , Html.text <| String.fromFloat <| vector.magnitude
-        ]
+    slider
+        { onChange = UserChangedMagnitude id
+        , labelText =
+            "Magnitude: ("
+                ++ (String.fromInt <| round <| vector.magnitude)
+                ++ ")"
+        , min = 0
+        , max = 10
+        , step = 1
+        , value = vector.magnitude
+        }
 
 
-thetaRange : VectorId -> Vector -> Html Msg
+thetaRange : VectorId -> Vector -> Element Msg
 thetaRange id vector =
-    Html.div []
-        [ Html.label [] [ Html.text "Direction" ]
-        , Html.input
-            [ HtmlAttr.type_ "range"
-            , HtmlAttr.max "360"
-            , HtmlAttr.min "0"
-            , HtmlAttr.step "1"
-            , HtmlAttr.value <| String.fromFloat <| vector.theta
-            , onRangeInput (UserChangedTheta id)
-            ]
-            []
-        , Html.text <| String.fromInt <| round vector.theta
-        ]
+    slider
+        { onChange = UserChangedTheta id
+        , labelText =
+            "Theta: ("
+                ++ (String.fromInt <| round <| vector.theta)
+                ++ ")"
+        , min = 0
+        , max = 360
+        , step = 1
+        , value = vector.theta
+        }
 
 
-onRangeInput : (Float -> msg) -> Html.Attribute msg
-onRangeInput tagger =
-    Html.Events.on "input" (Json.Decode.map tagger rangeTarget)
-
-
-rangeTarget : Decoder Float
-rangeTarget =
-    Html.Events.targetValue
-        |> Json.Decode.andThen (decoderFromMaybe << String.toFloat)
-
-
-decoderFromMaybe : Maybe a -> Decoder a
-decoderFromMaybe maybe =
-    case maybe of
-        Just value ->
-            Json.Decode.succeed value
-
-        Nothing ->
-            Json.Decode.fail "No value"
-
-
-drawingCanvas : Model -> Html a
+drawingCanvas : Model -> Element a
 drawingCanvas model =
     svgDrawing drawingCanvasViewport <|
         (canvasLineSegments <| List.map vectorToPolar model.vectors)
@@ -509,6 +512,63 @@ renderDrawPath viewport points =
 
 
 
+-- GENERIC VIEW HELPERS
+
+
+slider :
+    { min : Float
+    , max : Float
+    , step : Float
+    , value : Float
+    , labelText : String
+    , onChange : Float -> msg
+    }
+    -> Element msg
+slider { min, max, step, value, labelText, onChange } =
+    Element.Input.slider
+        [ Element.width (Element.px 100)
+        , Element.height (Element.px 20)
+        , Element.behindContent
+            (Element.el
+                [ Element.width Element.fill
+                , Element.height (Element.px 2)
+                , Element.centerY
+                , Element.Background.color (Element.rgb 0 0 0)
+                , Element.Border.rounded 2
+                ]
+                Element.none
+            )
+        ]
+        { onChange = onChange
+        , label = Element.Input.labelAbove [] <| label labelText
+        , min = min
+        , max = max
+        , step = Just step
+        , value = value
+        , thumb = Element.Input.defaultThumb
+        }
+
+
+label : String -> Element a
+label text =
+    Element.el [ Element.Font.semiBold ] <| Element.text text
+
+
+actionButton : String -> a -> Element a
+actionButton labelText msg =
+    Element.Input.button
+        [ Element.Background.color (Element.rgb 0.7 0.7 0.7)
+        , Element.Border.rounded 12
+        , Element.padding 3
+        , Element.Border.color (Element.rgb 0 0 0)
+        , Element.Border.width 1
+        ]
+        { label = Element.text labelText
+        , onPress = Just msg
+        }
+
+
+
 -- VIEWPORT
 
 
@@ -528,13 +588,15 @@ type alias Viewport =
     }
 
 
-svgDrawing : Viewport -> List (Svg a) -> Html a
+svgDrawing : Viewport -> List (Svg a) -> Element a
 svgDrawing viewport children =
-    Svg.svg
-        [ HtmlAttr.width <| pixelToInt <| viewport.width
-        , HtmlAttr.height <| pixelToInt <| viewport.height
-        ]
-        children
+    Element.el [] <|
+        Element.html <|
+            Svg.svg
+                [ HtmlAttr.width <| pixelToInt <| viewport.width
+                , HtmlAttr.height <| pixelToInt <| viewport.height
+                ]
+                children
 
 
 toScreenCoords : Viewport -> Polar -> ScreenCoord
